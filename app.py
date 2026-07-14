@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # API Configuration
-API_URL = os.getenv("API_URL", "http://localhost:8000")
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 
 st.set_page_config(
     page_title="PDF RAG QA System",
@@ -35,11 +35,13 @@ with st.sidebar:
                     
                     if response.status_code == 200:
                         data = response.json()
-                        st.success(f"✅ {data['message']}")
-                        st.info(f"Created {data['chunks_created']} chunks")
-                        st.info(f"Stored {data['vectors_stored']} vectors")
+                        st.success(f"✅ {data.get('message', 'Success!')}")
+                        st.info(f"Created {data.get('chunks_created', 0)} chunks")
+                        st.info(f"Stored {data.get('vectors_stored', 0)} vectors")
+                        st.info(f"Processed {data.get('pages_processed', 0)} pages")
                     else:
-                        st.error(f"Error: {response.text}")
+                        error_data = response.json()
+                        st.error(f"Error: {error_data.get('error', response.text)}")
                 except Exception as e:
                     st.error(f"Connection error: {e}")
     
@@ -79,21 +81,23 @@ if st.button("Ask Question", type="primary"):
                     
                     # Display answer
                     st.markdown("### Answer")
-                    st.markdown(data["answer"])
+                    st.markdown(data.get("answer", "No answer generated"))
                     
                     # Display sources
-                    if data["sources"]:
+                    sources = data.get("sources", [])
+                    if sources:
                         st.markdown("### 📚 Sources")
-                        for source in data["sources"]:
+                        for source in sources:
                             st.markdown(f"- **{source['document']}** (Page {source['page']})")
                     else:
                         st.info("No sources found.")
                     
                     # Display chunk usage
-                    st.caption(f"Used {data['chunks_used']} chunks for this answer")
+                    st.caption(f"Used {data.get('chunks_used', 0)} chunks for this answer")
                     
                 else:
-                    st.error(f"Error: {response.text}")
+                    error_data = response.json()
+                    st.error(f"Error: {error_data.get('error', response.text)}")
                     
             except Exception as e:
                 st.error(f"Connection error: {e}")
@@ -104,11 +108,13 @@ with st.expander("System Status"):
         response = requests.get(f"{API_URL}/status")
         if response.status_code == 200:
             data = response.json()
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Vectors Stored", data["vectors_stored"])
+                st.metric("Vectors Stored", data.get("vectors_stored", 0))
             with col2:
-                st.metric("Metadata Entries", data["metadata_count"])
+                st.metric("Metadata Entries", data.get("metadata_count", 0))
+            with col3:
+                st.metric("LLM Available", "✅" if data.get("llm_available") else "❌")
         else:
             st.warning("Could not fetch status")
     except Exception as e:

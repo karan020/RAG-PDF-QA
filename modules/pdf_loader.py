@@ -43,6 +43,10 @@ class PDFLoader:
             content = uploaded_file.getbuffer()
         elif hasattr(uploaded_file, "read"):
             content = uploaded_file.read()
+            # Check if read returned a coroutine (async file object)
+            if hasattr(content, '__await__'):
+                import asyncio
+                content = asyncio.run(content)
         else:
             raise TypeError("Unsupported upload object")
 

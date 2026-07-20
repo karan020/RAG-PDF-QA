@@ -1,48 +1,62 @@
-class PromptBuilder:
-    #Builds prompts for the LLM
+﻿class PromptBuilder:
+    """Builds prompts for the LLM."""
 
     @staticmethod
-    def build_prompt(question:str,context:str)->str:
-        """ Build a RAG prompt for the LLM. 
-        Parameters 
-        ---------- 
-        question : str 
-        User question context : str 
-        Retrieved document context 
-        Returns 
-        ------- 
-        str """
+    def build_prompt(question: str, context: str, conversation_history: list = None) -> str:
+        """Build a conversational RAG prompt for the LLM.
 
+        Parameters
+        ----------
+        question : str
+            User question.
+        context : str
+            Retrieved document context.
+        conversation_history : list
+            List of previous conversation turns.
+
+        Returns
+        -------
+        str
+            The complete prompt string.
+        """
+
+        # No relevant context found
         if not context.strip():
-            return f""" 
-            You are an intelligent document question-answering assistant. 
-            The uploaded documents do not contain enough information to answer the user's question. 
-            Politely respond with: 
-            "I could not find this information in the uploaded documents."
-             User Question: 
-             {question} 
-            """
-        prompt=f""" 
-        You are an intelligent Retrieval-Augmented Generation (RAG) assistant. 
-        You MUST answer ONLY using the information provided in the CONTEXT. 
-        Rules: 1. Do NOT use outside knowledge. 
-        2. Do NOT make up facts. 
-        3. If the answer is missing from the context, 
-        say: "I could not find this information in the uploaded documents." 
-        4. Keep the answer clear and concise. 
-        5. Use markdown formatting. 
-        6. Divide the answer into sections. 
-        CONTEXT == {context} 
-        USER QUESTION =={question}  
-        RESPONSE FORMAT  
-         # Overview Provide a short overview. --- 
-         # Key Points Use bullet points. --- 
-         # Detailed Explanation Explain the answer in detail using ONLY the provided context. --- 
-         # Conclusion Provide a brief concluding summary. 
-         Remember: 
-         - Never invent information. 
-         - Never answer beyond the supplied context. 
-         - If information is unavailable, clearly say so. 
-         """ 
+            return (
+                "You are a helpful document assistant. "
+                "The uploaded document does not contain information relevant to this question. "
+                "Respond naturally: tell the user you couldn't find that information in the document "
+                "and invite them to ask something else.\n\n"
+                f"User: {question}\nAssistant:"
+            )
+
+        # Build conversation history string (last 3 turns for context)
+        history_str = ""
+        if conversation_history and len(conversation_history) > 0:
+            history_str = "\n--- Recent conversation ---\n"
+            for conv in conversation_history[-3:]:
+                history_str += f"User: {conv['question']}\n"
+                history_str += f"Assistant: {conv['answer'][:400]}\n\n"
+            history_str += "--- End of recent conversation ---\n"
+
+        prompt = f"""You are a helpful, friendly AI assistant that answers questions based on an uploaded PDF document.
+
+Speak naturally and conversationally — like ChatGPT. Do NOT use rigid report sections such as "Overview", "Key Points", "Detailed Explanation", or "Conclusion" unless the user explicitly asks for a structured breakdown.
+
+Guidelines:
+- Answer directly and clearly in plain language.
+- Use short paragraphs or bullet points only when it genuinely aids clarity.
+- If the answer is not in the document, say so honestly and briefly.
+- Never invent or assume information not present in the context.
+- Reference the conversation history if it helps give a more useful answer.
+- For simple or conversational questions (e.g. "hi", "thanks", "what is this about?"), reply in a short, friendly way.
+
+{history_str}
+--- Document context ---
+{context}
+--- End of context ---
+
+User: {question}
+Assistant:"""
+
         return prompt
-    

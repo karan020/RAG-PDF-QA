@@ -257,18 +257,31 @@ def fetch_chats():
         r = requests.get(
             f"{API_URL}/user/{st.session_state.user_id}/chats", timeout=5
         )
-        return r.json().get("chats", []) if r.status_code == 200 else []
-    except Exception:
+        if r.status_code == 200:
+            chats = r.json().get("chats", [])
+            print(f"Fetched {len(chats)} chats for user {st.session_state.user_id}")
+            return chats
+        else:
+            print(f"Failed to fetch chats: {r.status_code}")
+            return []
+    except Exception as e:
+        print(f"Error fetching chats: {e}")
         return []
 
 
 def load_chat(chat_id):
     try:
         r = requests.get(f"{API_URL}/chat/{chat_id}", timeout=5)
-        st.session_state.conversations = (
-            r.json().get("conversations", []) if r.status_code == 200 else []
-        )
-    except Exception:
+        if r.status_code == 200:
+            data = r.json()
+            conversations = data.get("conversations", [])
+            st.session_state.conversations = conversations
+            print(f"Loaded {len(conversations)} conversations for chat {chat_id}")
+        else:
+            print(f"Failed to load chat {chat_id}: {r.status_code}")
+            st.session_state.conversations = []
+    except Exception as e:
+        print(f"Error loading chat {chat_id}: {e}")
         st.session_state.conversations = []
 
 
@@ -286,11 +299,14 @@ def delete_chat(chat_id):
 
 def create_chat(name, pdf_file):
     try:
+        print(f"Creating chat with name: {name}, user_id: {st.session_state.user_id}")
         files = {"file": (pdf_file.name, pdf_file.getvalue(), "application/pdf")}
         up = requests.post(f"{API_URL}/upload", files=files, timeout=120)
         if up.status_code != 200:
             st.sidebar.error(f"Upload failed: {up.json().get('error', up.text)}")
             return
+        print(f"PDF uploaded successfully")
+        
         cr = requests.post(
             f"{API_URL}/chat/create",
             json={
@@ -300,16 +316,20 @@ def create_chat(name, pdf_file):
             },
             timeout=10,
         )
+        print(f"Chat creation response status: {cr.status_code}")
         if cr.status_code == 200:
             d = cr.json()["chat"]
+            print(f"Chat created successfully: {d['id']}")
             st.session_state.current_chat_id = d["id"]
             st.session_state.current_chat_name = d["name"]
             st.session_state.conversations = []
             st.session_state.show_new_chat = False
             st.rerun()
         else:
+            print(f"Chat creation failed: {cr.text}")
             st.sidebar.error(f"Error: {cr.json().get('error', cr.text)}")
     except Exception as e:
+        print(f"Connection error: {e}")
         st.sidebar.error(f"Connection error: {e}")
 
 
@@ -466,14 +486,14 @@ else:
                                         placeholder.markdown(full_answer + " ▮")
                                     elif d["type"] == "done":
                                         placeholder.markdown(full_answer)
-                                        st.session_state.conversations.append(
-                                            {
-                                                "id": d.get("conversation_id"),
-                                                "question": question,
-                                                "answer": full_answer,
-                                                "sources": sources,
-                                            }
-                                        )
+                                        conversation_data = {
+                                            "id": d.get("conversation_id"),
+                                            "question": question,
+                                            "answer": full_answer,
+                                            "sources": sources,
+                                        }
+                                        st.session_state.conversations.append(conversation_data)
+                                        print(f"Added conversation to session state: {conversation_data['id']}")
                                         if sources:
                                             with st.expander("📚 Sources"):
                                                 for s in sources:

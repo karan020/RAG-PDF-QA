@@ -36,10 +36,10 @@ class MongoDB:
             self.chats = self.db["chats"]
             self.conversations = self.db["conversations"]
             self._create_indexes()
-            print(f"✅ MongoDB connected successfully to {self.db_name}")
+            print(f"MongoDB connected successfully to {self.db_name}")
             MongoDB._initialized = True
         except Exception as exc:
-            print(f"⚠️ MongoDB connection failed: {exc}")
+            print(f"MongoDB connection failed: {exc}")
             self.client = None
             self.db = None
             self.users = None
@@ -56,9 +56,9 @@ class MongoDB:
             self.chats.create_index([("user_id", 1), ("is_active", 1)])
             self.conversations.create_index([("chat_id", 1), ("created_at", 1)])
             self.conversations.create_index("chat_id")
-            print("✅ MongoDB indexes created successfully")
+            print("MongoDB indexes created successfully")
         except Exception as exc:
-            print(f"⚠️ MongoDB indexes creation failed: {exc}")
+            print(f"MongoDB indexes creation failed: {exc}")
 
     def get_db_stats(self) -> Dict:
         if self.db is None:
@@ -153,10 +153,24 @@ class MongoDB:
         result = self.chats.insert_one(chat_data)
         chat_id = str(result.inserted_id)
         chat_data["_id"] = chat_id
-        self.users.update_one(
-            {"_id": ObjectId(user_id)},
-            {"$push": {"chats": chat_id}, "$set": {"updated_at": datetime.now()}},
-        )
+        
+        # Update user's chats array
+        try:
+            update_result = self.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$push": {"chats": chat_id}, "$set": {"updated_at": datetime.now()}},
+            )
+            print(f"Created chat {chat_id} for user {user_id}, update result: {update_result.modified_count}")
+            
+            if update_result.modified_count == 0:
+                print(f"Warning: User document not updated. User ID: {user_id}")
+                # Check if user exists
+                user = self.users.find_one({"_id": ObjectId(user_id)})
+                if not user:
+                    print(f"User {user_id} not found in database")
+        except Exception as e:
+            print(f"Error updating user chats: {e}")
+            
         return chat_data
 
     def get_chat(self, chat_id: str) -> Optional[Dict]:
@@ -169,9 +183,21 @@ class MongoDB:
                 conversations = list(self.conversations.find({"chat_id": chat_id}).sort("created_at", 1))
                 for conv in conversations:
                     conv["_id"] = str(conv["_id"])
+                    # Convert datetime to string for JSON serialization
+                    if "created_at" in conv and conv["created_at"]:
+                        conv["created_at"] = conv["created_at"].isoformat()
                 chat["conversations"] = conversations
+                # Convert chat datetime fields to string
+                if "created_at" in chat and chat["created_at"]:
+                    chat["created_at"] = chat["created_at"].isoformat()
+                if "updated_at" in chat and chat["updated_at"]:
+                    chat["updated_at"] = chat["updated_at"].isoformat()
+                print(f"Retrieved chat {chat_id} with {len(conversations)} conversations")
+            else:
+                print(f"Chat {chat_id} not found")
             return chat
-        except Exception:
+        except Exception as e:
+            print(f"Error retrieving chat {chat_id}: {e}")
             return None
 
     def get_user_chats(self, user_id: str, limit: int = 50) -> List[Dict]:
@@ -218,10 +244,14 @@ class MongoDB:
         result = self.conversations.insert_one(conversation_data)
         conv_id = str(result.inserted_id)
         conversation_data["_id"] = conv_id
-        self.chats.update_one(
+        
+        # Update chat's conversation_ids array
+        update_result = self.chats.update_one(
             {"_id": ObjectId(chat_id)},
             {"$push": {"conversation_ids": conv_id}, "$set": {"updated_at": datetime.now()}},
         )
+        
+        print(f"Added conversation {conv_id} to chat {chat_id}, update result: {update_result.modified_count}")
         return conversation_data
 
     def get_chat_conversations(self, chat_id: str, limit: int = 100) -> List[Dict]:
@@ -266,14 +296,17 @@ class MongoDB:
         summary = []
         for chat in chats:
             conv_count = self.conversations.count_documents({"chat_id": str(chat["_id"])})
+            # Convert datetime to string for JSON serialization
+            created_at = chat["created_at"].isoformat() if chat.get("created_at") else None
+            updated_at = chat["updated_at"].isoformat() if chat.get("updated_at") else None
             summary.append(
                 {
                     "id": str(chat["_id"]),
                     "name": chat["name"],
                     "pdf_filename": chat["pdf_filename"],
                     "conversation_count": conv_count,
-                    "created_at": chat["created_at"],
-                    "updated_at": chat["updated_at"],
+                    "created_at": created_at,
+                    "updated_at": updated_at,
                 }
             )
         return summary

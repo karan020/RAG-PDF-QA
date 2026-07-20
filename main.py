@@ -491,6 +491,7 @@ async def get_chat(chat_id:str):
             user_id=chat_data["user_id"],
             name=chat_data["name"],
             pdf_filename=chat_data["pdf_filename"],
+            pdf_path=chat_data.get("pdf_path", ""),
             conversation_ids=[c["id"] for c in conversations if c.get("id")],
             created_at=chat_data["created_at"],
             updated_at=chat_data["updated_at"],

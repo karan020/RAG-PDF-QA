@@ -91,7 +91,7 @@ class ChatResponse(BaseModel):
     id: str
     name: str
     pdf_filename: str
-    conversation_count: str
+    conversation_count: int
     created_at: datetime
     updated_at: datetime
 

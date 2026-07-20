@@ -27,3 +27,4 @@ pandas
 
 tqdm
 pydantic
+pymongo

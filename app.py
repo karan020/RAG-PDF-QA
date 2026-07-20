@@ -36,7 +36,33 @@ st.markdown("""
     border-right: 1px solid var(--border);
   }
   [data-testid="stSidebar"] * { color: var(--text-primary) !important; }
-  #MainMenu, footer, header { visibility: hidden; }
+
+  /* ── Streamlit header: style it dark, DON'T hide it (hiding breaks the sidebar toggle) ── */
+  #MainMenu { visibility: hidden; }
+  footer    { visibility: hidden; }
+  [data-testid="stHeader"] {
+    background-color: var(--bg-main) !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  /* Hide deploy / status widgets — keep stToolbar so sidebar toggle stays clickable */
+  .stAppDeployButton             { display: none !important; }
+  [data-testid="stDecoration"]   { display: none !important; }
+  [data-testid="stStatusWidget"] { display: none !important; }
+
+  /* Native sidebar open/close controls (Streamlit 1.37+ and legacy) */
+  [data-testid="stSidebarCollapseButton"],
+  [data-testid="collapsedControl"] {
+    color: var(--text-primary) !important;
+    background-color: var(--bg-sidebar) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+  }
+  [data-testid="stSidebarCollapseButton"] svg,
+  [data-testid="collapsedControl"] svg {
+    fill: var(--text-primary) !important;
+    stroke: var(--text-primary) !important;
+  }
+
 
   /* ── All text elements ── */
   h1,h2,h3,h4,h5,h6,p,label,span,div,small,li,a {
@@ -187,7 +213,6 @@ st.markdown("""
   }
 </style>
 """, unsafe_allow_html=True)
-
 
 # ---- Session State ----
 for k, v in {
